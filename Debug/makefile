@@ -38,34 +38,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := L476_FreeRTOS_Snake2
+BUILD_ARTIFACT_NAME := L476_FreeRTOS_Snake_git
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-L476_FreeRTOS_Snake2.elf \
+L476_FreeRTOS_Snake_git.elf \
 
 MAP_FILES += \
-L476_FreeRTOS_Snake2.map \
+L476_FreeRTOS_Snake_git.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-L476_FreeRTOS_Snake2.list \
+L476_FreeRTOS_Snake_git.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: L476_FreeRTOS_Snake2.elf secondary-outputs
+main-build: L476_FreeRTOS_Snake_git.elf secondary-outputs
 
 # Tool invocations
-L476_FreeRTOS_Snake2.elf L476_FreeRTOS_Snake2.map: $(OBJS) $(USER_OBJS) C:\Users\danie\STM32CubeIDE\workspace_1.8.0\L476_FreeRTOS_Snake2\STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "L476_FreeRTOS_Snake2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\danie\STM32CubeIDE\workspace_1.8.0\L476_FreeRTOS_Snake2\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="L476_FreeRTOS_Snake2.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+L476_FreeRTOS_Snake_git.elf L476_FreeRTOS_Snake_git.map: $(OBJS) $(USER_OBJS) C:\Users\danie\STM32CubeIDE\workspace_1.8.0\L476_FreeRTOS_Snake_git\STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "L476_FreeRTOS_Snake_git.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\danie\STM32CubeIDE\workspace_1.8.0\L476_FreeRTOS_Snake_git\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="L476_FreeRTOS_Snake_git.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -74,14 +74,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-L476_FreeRTOS_Snake2.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "L476_FreeRTOS_Snake2.list"
+L476_FreeRTOS_Snake_git.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "L476_FreeRTOS_Snake_git.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) L476_FreeRTOS_Snake2.elf L476_FreeRTOS_Snake2.list L476_FreeRTOS_Snake2.map default.size.stdout
+	-$(RM) L476_FreeRTOS_Snake_git.elf L476_FreeRTOS_Snake_git.list L476_FreeRTOS_Snake_git.map default.size.stdout
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
