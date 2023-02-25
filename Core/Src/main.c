@@ -80,11 +80,13 @@ void ButtonHandler_A( void *pvParameters );
 void ButtonHandler_B( void *pvParameters );
 void ButtonHandler_C( void *pvParameters );
 void ButtonHandler_D( void *pvParameters );
+void ScreenDriver( void *pvParameters );
 
 QueueHandle_t xDirectionQ, xBoardQ, xSnakeQ, xCellStateQ, xFoodPositionQ;
 
-SemaphoreHandle_t xButtonPressedSem, xGameOverSem, xCheckCollison, xCollisionChecked, xGenerateFood, xFoodGenerated;
+SemaphoreHandle_t xButtonPressedSem, xGameOverSem, xCheckCollison, xCollisionChecked, xGenerateFood, xFoodGenerated, xRepaintScreen;
 SemaphoreHandle_t xHandleButtonPressA, xHandleButtonPressB, xHandleButtonPressC, xHandleButtonPressD;
+SemaphoreHandle_t xScreenDriverMutex;
 
 /* USER CODE END PFP */
 
@@ -161,6 +163,9 @@ int main(void)
   xHandleButtonPressB = xSemaphoreCreateBinary();
   xHandleButtonPressC = xSemaphoreCreateBinary();
   xHandleButtonPressD = xSemaphoreCreateBinary();
+  xRepaintScreen = xSemaphoreCreateBinary();
+
+  xScreenDriverMutex = xSemaphoreCreateMutex();
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -170,10 +175,10 @@ int main(void)
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
 
-  int test[4][8][8];
-  memset(test, 0, sizeof(test));
+//  int test[4][8][8];
+//  memset(test, 0, sizeof(test));
   xDirectionQ = xQueueCreate( 10, sizeof( char ) );
-  xBoardQ = xQueueCreate( 2, sizeof( test ) );
+  xBoardQ = xQueueCreate( 2, sizeof( int ) *4 *8 *8 );
   xSnakeQ = xQueueCreate( 2, sizeof(  llist ) );
   xCellStateQ = xQueueCreate( 5, sizeof( int ));
   xFoodPositionQ = xQueueCreate( 5, sizeof( int ) * 3);
@@ -187,13 +192,14 @@ int main(void)
   /* add threads, ... */
   xTaskCreate(GameLoop, "GameLoop", configMINIMAL_STACK_SIZE*8, NULL, 1, NULL );
   //xTaskCreate(ButtonHandler, "ButtonHandler", configMINIMAL_STACK_SIZE, NULL, 2, NULL );
-  xTaskCreate(CollisionCheck, "CollisionCheck", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL );
+  //xTaskCreate(CollisionCheck, "CollisionCheck", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL );
   xTaskCreate(Task3, "Task3", configMINIMAL_STACK_SIZE, NULL, 5, NULL );
   xTaskCreate(FoodPositionGenerator, "FoodPositionGenerator", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
   xTaskCreate(ButtonHandler_A, "ButtonHandler_A", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
   xTaskCreate(ButtonHandler_B, "ButtonHandler_B", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
   xTaskCreate(ButtonHandler_C, "ButtonHandler_C", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
   xTaskCreate(ButtonHandler_D, "ButtonHandler_D", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
+  xTaskCreate(ScreenDriver, "ScreenDriver", configMINIMAL_STACK_SIZE*8, NULL, 1, NULL );
 
 
   // LOW
@@ -520,6 +526,7 @@ void ButtonHandler_A( void *pvParameters ){
 
 	for(;;)
 	    {
+
 			if( xSemaphoreTake( xHandleButtonPressA, ( TickType_t ) portMAX_DELAY) == pdTRUE );
 			xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
 			xSemaphoreGive( xButtonPressedSem );
@@ -529,6 +536,7 @@ void ButtonHandler_B( void *pvParameters ){
 	char buttonLetter = 'b';
 	for(;;)
 		    {
+
 				if( xSemaphoreTake( xHandleButtonPressB, ( TickType_t ) portMAX_DELAY) == pdTRUE );
 				xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
 				xSemaphoreGive( xButtonPressedSem );
@@ -538,6 +546,7 @@ void ButtonHandler_C( void *pvParameters ){
 	char buttonLetter = 'c';
 	for(;;)
 		    {
+
 				if( xSemaphoreTake( xHandleButtonPressC, ( TickType_t ) portMAX_DELAY) == pdTRUE );
 				xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
 				xSemaphoreGive( xButtonPressedSem );
@@ -547,6 +556,7 @@ void ButtonHandler_D( void *pvParameters ){
 	char buttonLetter = 'd';
 	for(;;)
 		    {
+
 				if( xSemaphoreTake( xHandleButtonPressD, ( TickType_t ) portMAX_DELAY) == pdTRUE );
 				xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
 				xSemaphoreGive( xButtonPressedSem );
@@ -554,75 +564,55 @@ void ButtonHandler_D( void *pvParameters ){
 
 };
 
+void ScreenDriver( void * pvParameters ){
+	int board[4][8][8];
+
+	for(;;)
+			    {
+		if( xSemaphoreTake( xRepaintScreen, ( TickType_t ) portMAX_DELAY) == pdTRUE );
+		xQueueReceive( xBoardQ, &board, ( TickType_t ) 10 );
+
+		MAX7219_paintPoints(0, board[0]);
+		MAX7219_paintPoints(1, board[1]);
+		MAX7219_paintPoints(2, board[2]);
+		MAX7219_paintPoints(3, board[3]);
+		MAX7219_MatrixUpdate();
+			    }
+
+};
 
 
 void GameLoop( void * pvParameters )
 
 {
-	int board[4][8][8] = {
-			{{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0}},
-			{{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0}},
-			{{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0}},
-			{{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0},
-			{0,0,0,0,0,0,0,0}}
-		};
-
-
-	llist *snake = llist_create(NULL);
-	llist_push(snake, 0,4,1);
-	llist_push(snake, 0,4,2);
-	//llist_push(snake, 0,4,3);
-
-
+	int board[4][8][8];
 	char direction = 'a';
 	char previousDirection = 'a';
 	int delay = 350;
 	int cellState = 0;
-
-	llist_printSnake(snake, board);
-
-	MAX7219_paintPoints(0, board[0]);
-	MAX7219_paintPoints(1, board[1]);
-	MAX7219_paintPoints(2, board[2]);
-	MAX7219_paintPoints(3, board[3]);
-	MAX7219_MatrixUpdate();
-	vTaskDelay(delay);
-
 	int foodTimeout = 3;
 	int food[3];
 	int grow = 0;
 
+	memset(board, 0, sizeof(board));
+
+	llist *snake = llist_create(NULL);
+	llist_push(snake, 0,4,1);
+	llist_push(snake, 0,4,2);
+
+	llist_printSnake(snake, board);
+
+	if( xSemaphoreTake( xScreenDriverMutex, ( TickType_t ) portMAX_DELAY) == pdTRUE ) ;
+
+	xQueueSend( xBoardQ, ( void * ) &board,  1 );
+	xSemaphoreGive( xRepaintScreen );
+
+	xSemaphoreGive(xScreenDriverMutex);
+
+	vTaskDelay(delay);
 
     for(;;)
     {
-
 
     	if( xSemaphoreTake( xButtonPressedSem, ( TickType_t ) 1) == pdTRUE ){
     		previousDirection = direction;
@@ -654,13 +644,6 @@ void GameLoop( void * pvParameters )
     	}else {
 
 
-
-
-
-//    		int checkOccupiedRight(struct node* head, int boardState[][8][8]);
-//    		int checkOccupiedLeft(struct node* head, int boardState[][8][8]);
-//    		int checkOccupiedUp(struct node* head, int boardState[][8][8]);
-//    		int checkOccupiedDown(struct node* head, int boardState[][8][8]);
     		switch (direction)
 			{
 			case 'b':
@@ -739,15 +722,17 @@ void GameLoop( void * pvParameters )
 
         	llist_printSnake(snake, board);
 
-//        	board[3][0][0] = 1;
+//        	board[3][0][0] = 1; test code
 //        	board[3][0][1] = 1;
 //        	board[3][2][0] = 1;
 
-    		MAX7219_paintPoints(0, board[0]);
-    		MAX7219_paintPoints(1, board[1]);
-    		MAX7219_paintPoints(2, board[2]);
-    		MAX7219_paintPoints(3, board[3]);
-    		MAX7219_MatrixUpdate();
+        	if( xSemaphoreTake( xScreenDriverMutex, ( TickType_t ) portMAX_DELAY) == pdTRUE ) ;
+
+			xQueueSend( xBoardQ, ( void * ) &board,  1 );
+			xSemaphoreGive( xRepaintScreen );
+
+			xSemaphoreGive(xScreenDriverMutex);
+
 
     		vTaskDelay(delay);
     		foodTimeout++;
@@ -766,10 +751,9 @@ void FoodPositionGenerator(void *  pvParameters){
 	int y;
 	int valid = 0;
 	int food[3];
-	for (int i = 0; i < (rand()%10)+2; ++i) {
-		int test = rand();
-	}
+
 	for(;;) {
+		if( xSemaphoreTake( xGameOverSem, ( TickType_t ) 0) == pdTRUE ) break;
 		display = rand() % 4;
 
 		if(xSemaphoreTake( xGenerateFood, ( TickType_t ) portMAX_DELAY) == pdTRUE);
@@ -781,11 +765,8 @@ void FoodPositionGenerator(void *  pvParameters){
 			struct node *curr = *snakeBody;
 			valid = 1;
 
-
-
 			x = rand() % 8;
 			y = rand() % 8;
-
 
 			while (curr != NULL) {
 
@@ -804,7 +785,6 @@ void FoodPositionGenerator(void *  pvParameters){
 
 		xQueueSend( xFoodPositionQ, (void *) &food,  1 );
 		xSemaphoreGive( xFoodGenerated );
-
 	}
 }
 
@@ -869,14 +849,38 @@ void ButtonHandler( void * pvParameters )
 
 void Task3( void * pvParameters )
 {
+	const uint64_t IMAGES[] = {
+	  0xff00000000000000,
+	  0xff18000000000000,
+	  0xff24180000000000,
+	  0xff5a241800000000,
+	  0xff7e5a2418000000,
+	  0xff7e7e5a24180000,
+	  0xff5a7e7e5a241800,
+	  0xff5a5a7e7e5a2418,
+	  0xff5a5a7e7e5a2418
+	};
+	const int IMAGES_LEN = sizeof(IMAGES)/8;
+
 	if(xSemaphoreTake( xGameOverSem, ( TickType_t ) portMAX_DELAY) == pdTRUE);
+	if( xSemaphoreTake( xScreenDriverMutex, ( TickType_t ) portMAX_DELAY) == pdTRUE ) ;
+	for (int i = 0; i < IMAGES_LEN; ++i) {
+		MAX7219_MatrixSetRow64(0, IMAGES[i]);
+		MAX7219_MatrixSetRow64(1, IMAGES[i]);
+		MAX7219_MatrixSetRow64(2, IMAGES[i]);
+		MAX7219_MatrixSetRow64(3, IMAGES[i]);
+		MAX7219_MatrixUpdate();
+		vTaskDelay(200);
+
+	}
     for(;;)
     {
+
     	 MAX7219_MatrixSetRow64(0, CHR('D'));
-    	 	    MAX7219_MatrixSetRow64(1, CHR('E'));
-    	 	  MAX7219_MatrixSetRow64(2, CHR('A'));
-    	  	MAX7219_MatrixSetRow64(3, CHR('D'));
-    	  	MAX7219_MatrixUpdate();
+		MAX7219_MatrixSetRow64(1, CHR('E'));
+		  MAX7219_MatrixSetRow64(2, CHR('A'));
+		MAX7219_MatrixSetRow64(3, CHR('D'));
+		MAX7219_MatrixUpdate();
     }
 }
 
