@@ -109,7 +109,8 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
-	srand(212321);
+	//srand(212321);
+	srand((unsigned int) time(NULL));
 
 
 
@@ -705,7 +706,7 @@ void GameLoop( void * pvParameters )
 			default:
 				break;
 			}
-    		if (grow == 1) if (delay > 150) delay = delay - 1;
+    		if (grow == 1) if (delay > 150) delay = delay - 5;
     		grow = 0;
 
     		memset(board, 0, sizeof(board));
@@ -754,6 +755,9 @@ void FoodPositionGenerator(void *  pvParameters){
 	int y;
 	int valid = 0;
 	int food[3];
+	for (int i = 0; i < 50; ++i) {
+		rand();
+	}
 
 	for(;;) {
 
@@ -881,9 +885,10 @@ void Task3( void * pvParameters )
 		MAX7219_MatrixSetRow64(2, IMAGES[i]);
 		MAX7219_MatrixSetRow64(3, IMAGES[i]);
 		MAX7219_MatrixUpdate();
-		vTaskDelay(200);
+		vTaskDelay(150);
 
 	}
+	vTaskDelay(500);
     for(;;)
     {
 
