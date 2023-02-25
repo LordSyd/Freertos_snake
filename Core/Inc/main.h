@@ -68,14 +68,13 @@ void Error_Handler(void);
 #define SPI_CS_GPIO_Port GPIOA
 #define Button_A3_Pin GPIO_PIN_0
 #define Button_A3_GPIO_Port GPIOB
-#define Shield_Btn_A_Pin GPIO_PIN_10
-#define Shield_Btn_A_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
-#define Shield_Btn_C_Pin GPIO_PIN_5
-#define Shield_Btn_C_GPIO_Port GPIOB
+#define Button_B_Pin GPIO_PIN_3
+#define Button_B_GPIO_Port GPIOB
+#define Button_B_EXTI_IRQn EXTI3_IRQn
 
 /* USER CODE BEGIN Private defines */
 #define LED1on(); HAL_GPIO_WritePin (GPIOA, GPIO_PIN_5,0);

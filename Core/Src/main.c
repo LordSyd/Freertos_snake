@@ -23,8 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
+#include <time.h>
 #include "semphr.h"
 #include "queue.h"
 #include <string.h>
@@ -76,10 +76,15 @@ void ButtonHandler( void *pvParameters );
 void CollisionCheck( void *pvParameters );
 void Task3( void *pvParameters );
 void FoodPositionGenerator( void *pvParameters );
+void ButtonHandler_A( void *pvParameters );
+void ButtonHandler_B( void *pvParameters );
+void ButtonHandler_C( void *pvParameters );
+void ButtonHandler_D( void *pvParameters );
 
 QueueHandle_t xDirectionQ, xBoardQ, xSnakeQ, xCellStateQ, xFoodPositionQ;
 
 SemaphoreHandle_t xButtonPressedSem, xGameOverSem, xCheckCollison, xCollisionChecked, xGenerateFood, xFoodGenerated;
+SemaphoreHandle_t xHandleButtonPressA, xHandleButtonPressB, xHandleButtonPressC, xHandleButtonPressD;
 
 /* USER CODE END PFP */
 
@@ -123,8 +128,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  time_t t;
-  srand((unsigned) time(&t));
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -153,6 +157,10 @@ int main(void)
   xCollisionChecked = xSemaphoreCreateBinary();
   xGenerateFood = xSemaphoreCreateBinary();
   xFoodGenerated = xSemaphoreCreateBinary();
+  xHandleButtonPressA = xSemaphoreCreateBinary();
+  xHandleButtonPressB = xSemaphoreCreateBinary();
+  xHandleButtonPressC = xSemaphoreCreateBinary();
+  xHandleButtonPressD = xSemaphoreCreateBinary();
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -161,6 +169,7 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+
   int test[4][8][8];
   memset(test, 0, sizeof(test));
   xDirectionQ = xQueueCreate( 10, sizeof( char ) );
@@ -177,10 +186,14 @@ int main(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   xTaskCreate(GameLoop, "GameLoop", configMINIMAL_STACK_SIZE*8, NULL, 1, NULL );
-  xTaskCreate(ButtonHandler, "ButtonHandler", configMINIMAL_STACK_SIZE, NULL, 2, NULL );
+  //xTaskCreate(ButtonHandler, "ButtonHandler", configMINIMAL_STACK_SIZE, NULL, 2, NULL );
   xTaskCreate(CollisionCheck, "CollisionCheck", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL );
-  xTaskCreate(Task3, "Task3", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
+  xTaskCreate(Task3, "Task3", configMINIMAL_STACK_SIZE, NULL, 5, NULL );
   xTaskCreate(FoodPositionGenerator, "FoodPositionGenerator", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+  xTaskCreate(ButtonHandler_A, "ButtonHandler_A", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
+  xTaskCreate(ButtonHandler_B, "ButtonHandler_B", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
+  xTaskCreate(ButtonHandler_C, "ButtonHandler_C", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
+  xTaskCreate(ButtonHandler_D, "ButtonHandler_D", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
 
 
   // LOW
@@ -366,8 +379,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 PA8 Shield_Btn_A_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_8|Shield_Btn_A_Pin;
+  /*Configure GPIO pins : PA1 PA8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_8;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -379,11 +392,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Button_A3_Pin PB10 PB3 PB4
-                           Shield_Btn_C_Pin */
-  GPIO_InitStruct.Pin = Button_A3_Pin|GPIO_PIN_10|GPIO_PIN_3|GPIO_PIN_4
-                          |Shield_Btn_C_Pin;
+  /*Configure GPIO pins : Button_A3_Pin PB10 */
+  GPIO_InitStruct.Pin = Button_A3_Pin|GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Button_B_Pin PB4 PB5 */
+  GPIO_InitStruct.Pin = Button_B_Pin|GPIO_PIN_4|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -395,16 +418,146 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
 /* USER CODE BEGIN 4 */
+void EXTI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
+	static  BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
+
+
+	xSemaphoreGiveFromISR( xHandleButtonPressB, &xHigherPriorityTaskWoken );
+
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+
+  /* USER CODE END EXTI3_IRQn 0 */
+
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
+
+  /* USER CODE END EXTI3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line4 interrupt.
+  */
+void EXTI4_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI4_IRQn 0 */
+	static  BaseType_t xHigherPriorityTaskWoken;
+		xHigherPriorityTaskWoken = pdFALSE;
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_4);
+
+
+		xSemaphoreGiveFromISR( xHandleButtonPressD, &xHigherPriorityTaskWoken );
+
+		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+
+  /* USER CODE END EXTI4_IRQn 0 */
+  /* USER CODE BEGIN EXTI4_IRQn 1 */
+
+  /* USER CODE END EXTI4_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line[9:5] interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+	static  BaseType_t xHigherPriorityTaskWoken;
+		xHigherPriorityTaskWoken = pdFALSE;
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_5);
+
+
+		xSemaphoreGiveFromISR( xHandleButtonPressC, &xHigherPriorityTaskWoken );
+
+		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+
+  /* USER CODE END EXTI9_5_IRQn 0 */
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line[15:10] interrupts.
+  */
+void EXTI15_10_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI15_10_IRQn 0 */
+	static  BaseType_t xHigherPriorityTaskWoken;
+		xHigherPriorityTaskWoken = pdFALSE;
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_10);
+
+
+		xSemaphoreGiveFromISR( xHandleButtonPressA, &xHigherPriorityTaskWoken );
+
+		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+
+  /* USER CODE END EXTI15_10_IRQn 0 */
+  /* USER CODE BEGIN EXTI15_10_IRQn 1 */
+
+  /* USER CODE END EXTI15_10_IRQn 1 */
+}
+
+void ButtonHandler_A( void *pvParameters ){
+	char buttonLetter = 'a';
+
+	for(;;)
+	    {
+			if( xSemaphoreTake( xHandleButtonPressA, ( TickType_t ) portMAX_DELAY) == pdTRUE );
+			xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
+			xSemaphoreGive( xButtonPressedSem );
+	    }
+};
+void ButtonHandler_B( void *pvParameters ){
+	char buttonLetter = 'b';
+	for(;;)
+		    {
+				if( xSemaphoreTake( xHandleButtonPressB, ( TickType_t ) portMAX_DELAY) == pdTRUE );
+				xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
+				xSemaphoreGive( xButtonPressedSem );
+		    }
+};
+void ButtonHandler_C( void *pvParameters ){
+	char buttonLetter = 'c';
+	for(;;)
+		    {
+				if( xSemaphoreTake( xHandleButtonPressC, ( TickType_t ) portMAX_DELAY) == pdTRUE );
+				xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
+				xSemaphoreGive( xButtonPressedSem );
+		    }
+};
+void ButtonHandler_D( void *pvParameters ){
+	char buttonLetter = 'd';
+	for(;;)
+		    {
+				if( xSemaphoreTake( xHandleButtonPressD, ( TickType_t ) portMAX_DELAY) == pdTRUE );
+				xQueueSend( xDirectionQ, ( void * ) &buttonLetter,  portMAX_DELAY );
+				xSemaphoreGive( xButtonPressedSem );
+		    }
+
+};
 
 
 
 void GameLoop( void * pvParameters )
+
 {
 	int board[4][8][8] = {
 			{{0,0,0,0,0,0,0,0},
@@ -474,6 +627,30 @@ void GameLoop( void * pvParameters )
     	if( xSemaphoreTake( xButtonPressedSem, ( TickType_t ) 1) == pdTRUE ){
     		previousDirection = direction;
     		xQueueReceive( xDirectionQ, &direction, ( TickType_t ) 10 );
+    		switch (direction)
+			{
+				case 'b':
+					if (previousDirection == 'd') direction = previousDirection;
+
+					break;
+				case 'd':
+
+					if (previousDirection == 'b') direction = previousDirection;
+					break;
+				case 'c':
+
+					if (previousDirection == 'a') direction = previousDirection;
+					break;
+				case 'a':
+
+					if (previousDirection == 'c') direction = previousDirection;
+
+					break;
+				default:
+					break;
+			}
+
+    		xQueueReset(xDirectionQ);
     	}else {
 
 
@@ -488,41 +665,52 @@ void GameLoop( void * pvParameters )
 			{
 			case 'b':
 				cellState = checkOccupiedDown( snake, board);
-				if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
-				if (cellState == 2 ) {
-					foodTimeout = 0;
-					grow = 1;
-					if (delay > 55) delay = delay - 15;
+				if (previousDirection != 'd'){
+					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
+					if (cellState == 2 ) {
+						foodTimeout = 0;
+						grow = 1;
+					}
+					 moveDown(snake, grow);
 				}
 				break;
 			case 'd':
 				cellState = checkOccupiedUp( snake, board);
 
-				if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
-				if (cellState == 2 ) {
-									foodTimeout = 0;
-									grow = 1;
-									if (delay > 55) delay = delay - 15;
-								}
+				if (previousDirection != 'b') {
 
+					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
+					if (cellState == 2 ) {
+										foodTimeout = 0;
+										grow = 1;
+									}
+					moveUp(snake, grow);
+				}
 				break;
 			case 'c':
 				cellState = checkOccupiedLeft( snake, board);
-				if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
-				if (cellState == 2 ) {
-									foodTimeout = 0;
-									grow = 1;
-									if (delay > 55) delay = delay - 15;
-								}
+				if (previousDirection != 'a'){
+					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
+					if (cellState == 2 ) {
+										foodTimeout = 0;
+										grow = 1;
+									}
+					 moveLeft(snake, grow);
+				}
 				break;
 			case 'a':
 				cellState = checkOccupiedRight( snake, board);
-				if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
-				if (cellState == 2 ) {
-									foodTimeout = 0;
-									grow = 1;
-									if (delay > 55) delay = delay - 15;
-								}
+
+
+				if (previousDirection != 'c'){
+					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
+					if (cellState == 2 ) {
+						foodTimeout = 0;
+						grow = 1;
+					}
+					moveRight(snake, grow);
+				}
+
 
 				//if (checkOccupiedRight( *snake, board) != 0 ) xSemaphoreGive( xGameOverSem );
 //				xQueueSend( xBoardQ, ( void * ) &board,  1 );
@@ -534,40 +722,10 @@ void GameLoop( void * pvParameters )
 			default:
 				break;
 			}
+    		if (grow == 1) if (delay > 150) delay = delay - 1;
+    		grow = 0;
 
     		memset(board, 0, sizeof(board));
-//   		for (int i = 0; i < 4; ++i) {
-//   			for (int j = 0; j < 8; ++j) {
-//   				for (int k = 0; k < 8; ++k) {
-//   						board[i][j][k] = 0;
-//   				}
-//			}
-//	}
-    		//llist_setZero(snake, board);
-
-
-//todo check grow error on all directions
-    		switch (direction)
-			{
-			case 'b':
-				if (previousDirection != 'd') moveDown(snake, grow);
-				break;
-			case 'd':
-
-				 if (previousDirection != 'b') moveUp(snake, grow);
-				break;
-			case 'c':
-
-				if (previousDirection != 'a') moveLeft(snake, grow);
-				break;
-			case 'a':
-				if (previousDirection != 'c') moveRight(snake, grow);
-
-				break;
-			default:
-				break;
-			}
-    		grow = 0;
 
     		if (foodTimeout == 4){
 				xQueueSend( xSnakeQ, ( void * ) &snake,  1 );
@@ -577,7 +735,7 @@ void GameLoop( void * pvParameters )
 				xQueueReceive( xFoodPositionQ, &food, ( TickType_t ) 10 );
 
 			}
-    		if (foodTimeout >= 4) board[food[0]][food[0]][food[0]] = 2;
+    		if (foodTimeout >= 4) board[food[0]][food[2]][food[1]] = 2;
 
         	llist_printSnake(snake, board);
 
@@ -601,43 +759,41 @@ void GameLoop( void * pvParameters )
 }
 
 void FoodPositionGenerator(void *  pvParameters){
-
-	llist *snakeBody = llist_create(NULL);
+	srand((unsigned int)time(NULL));
+	llist *snakeBody;
 	int display;
 	int x;
 	int y;
 	int valid = 0;
-	int food[3] = {0,0,0};
+	int food[3];
+	for (int i = 0; i < (rand()%10)+2; ++i) {
+		int test = rand();
+	}
 	for(;;) {
 		display = rand() % 4;
 
 		if(xSemaphoreTake( xGenerateFood, ( TickType_t ) portMAX_DELAY) == pdTRUE);
 		xQueueReceive( xSnakeQ, &snakeBody, ( TickType_t ) 10 );
 
+
+		display = rand() % 4;
 		while(valid == 0 ){
+			struct node *curr = *snakeBody;
 			valid = 1;
-			display = rand() % 4;
+
+
+
 			x = rand() % 8;
 			y = rand() % 8;
-
-			struct node *curr = *snakeBody;
 
 
 			while (curr != NULL) {
 
-				if (curr->display == display) {
-									valid = 0;
-
-								};
-
-				if (curr->x == x) {
+				if (curr->x && curr->y == y && curr->display) {
 					valid = 0;
-
 				};
-				if (curr->y == y){
-					valid = 0;
-				}
 
+				if (valid == 0) break;
 				curr = curr->next;
 			}
 		}
