@@ -109,7 +109,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
-
+	srand(212321);
 
 
 
@@ -710,15 +710,16 @@ void GameLoop( void * pvParameters )
 
     		memset(board, 0, sizeof(board));
 
-    		if (foodTimeout == 4){
-				xQueueSend( xSnakeQ, ( void * ) &snake,  1 );
+    		if (foodTimeout == 6){
+    			xQueueReset(xSnakeQ);
+				xQueueSend( xSnakeQ, ( void * ) &snake,  10 );
 				xSemaphoreGive( xGenerateFood );
 
 				if(xSemaphoreTake( xFoodGenerated, ( TickType_t ) portMAX_DELAY) == pdTRUE);
 				xQueueReceive( xFoodPositionQ, &food, ( TickType_t ) 10 );
 
 			}
-    		if (foodTimeout >= 4) board[food[0]][food[2]][food[1]] = 2;
+    		if (foodTimeout >= 6) board[food[0]][food[2]][food[1]] = 2;
 
         	llist_printSnake(snake, board);
 
@@ -727,6 +728,7 @@ void GameLoop( void * pvParameters )
 //        	board[3][2][0] = 1;
 
         	if( xSemaphoreTake( xScreenDriverMutex, ( TickType_t ) portMAX_DELAY) == pdTRUE ) ;
+
 
 			xQueueSend( xBoardQ, ( void * ) &board,  1 );
 			xSemaphoreGive( xRepaintScreen );
@@ -744,7 +746,8 @@ void GameLoop( void * pvParameters )
 }
 
 void FoodPositionGenerator(void *  pvParameters){
-	srand((unsigned int)time(NULL));
+
+
 	llist *snakeBody;
 	int display;
 	int x;
@@ -753,28 +756,36 @@ void FoodPositionGenerator(void *  pvParameters){
 	int food[3];
 
 	for(;;) {
-		if( xSemaphoreTake( xGameOverSem, ( TickType_t ) 0) == pdTRUE ) break;
-		display = rand() % 4;
+
+
+
 
 		if(xSemaphoreTake( xGenerateFood, ( TickType_t ) portMAX_DELAY) == pdTRUE);
-		xQueueReceive( xSnakeQ, &snakeBody, ( TickType_t ) 10 );
 
+		xQueueReceive( xSnakeQ, &snakeBody, ( TickType_t ) portMAX_DELAY );
 
 		display = rand() % 4;
+
+		x = rand() % 8;
+		y = rand() % 8;
+
+
 		while(valid == 0 ){
 			struct node *curr = *snakeBody;
 			valid = 1;
+
+			display = rand() % 4;
 
 			x = rand() % 8;
 			y = rand() % 8;
 
 			while (curr != NULL) {
 
-				if (curr->x && curr->y == y && curr->display) {
+				if (curr->x == x  && curr->y == y && curr->display == display) {
 					valid = 0;
+					break;
 				};
 
-				if (valid == 0) break;
 				curr = curr->next;
 			}
 		}
