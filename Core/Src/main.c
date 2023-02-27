@@ -74,7 +74,7 @@ void StartDefaultTask(void *argument);
 void GameLoop( void *pvParameters );
 void ButtonHandler( void *pvParameters );
 void CollisionCheck( void *pvParameters );
-void Task3( void *pvParameters );
+void PaintDeathScreen( void *pvParameters );
 void FoodPositionGenerator( void *pvParameters );
 void ButtonHandler_A( void *pvParameters );
 void ButtonHandler_B( void *pvParameters );
@@ -181,7 +181,7 @@ int main(void)
   xDirectionQ = xQueueCreate( 10, sizeof( char ) );
   xBoardQ = xQueueCreate( 2, sizeof( int ) *4 *8 *8 );
   xSnakeQ = xQueueCreate( 2, sizeof(  llist ) );
-  xCellStateQ = xQueueCreate( 5, sizeof( int ));
+  //xCellStateQ = xQueueCreate( 5, sizeof( int ));
   xFoodPositionQ = xQueueCreate( 5, sizeof( int ) * 3);
   /* USER CODE END RTOS_QUEUES */
 
@@ -194,7 +194,7 @@ int main(void)
   xTaskCreate(GameLoop, "GameLoop", configMINIMAL_STACK_SIZE*8, NULL, 1, NULL );
   //xTaskCreate(ButtonHandler, "ButtonHandler", configMINIMAL_STACK_SIZE, NULL, 2, NULL );
   //xTaskCreate(CollisionCheck, "CollisionCheck", configMINIMAL_STACK_SIZE*8, NULL, 2, NULL );
-  xTaskCreate(Task3, "Task3", configMINIMAL_STACK_SIZE, NULL, 5, NULL );
+  xTaskCreate(PaintDeathScreen, "PaintDeathScreen", configMINIMAL_STACK_SIZE, NULL, 5, NULL );
   xTaskCreate(FoodPositionGenerator, "FoodPositionGenerator", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
   xTaskCreate(ButtonHandler_A, "ButtonHandler_A", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
   xTaskCreate(ButtonHandler_B, "ButtonHandler_B", configMINIMAL_STACK_SIZE, NULL, 3, NULL );
@@ -589,7 +589,7 @@ void GameLoop( void * pvParameters )
 	int board[4][8][8];
 	char direction = 'a';
 	char previousDirection = 'a';
-	int delay = 350;
+	int delay = 250;
 	int cellState = 0;
 	int foodTimeout = 3;
 	int food[3];
@@ -649,19 +649,19 @@ void GameLoop( void * pvParameters )
 			{
 			case 'b':
 				cellState = checkOccupiedDown( snake, board);
-				if (previousDirection != 'd'){
+
 					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
 					if (cellState == 2 ) {
 						foodTimeout = 0;
 						grow = 1;
 					}
 					 moveDown(snake, grow);
-				}
+
 				break;
 			case 'd':
 				cellState = checkOccupiedUp( snake, board);
 
-				if (previousDirection != 'b') {
+
 
 					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
 					if (cellState == 2 ) {
@@ -669,32 +669,33 @@ void GameLoop( void * pvParameters )
 										grow = 1;
 									}
 					moveUp(snake, grow);
-				}
+
 				break;
 			case 'c':
 				cellState = checkOccupiedLeft( snake, board);
-				if (previousDirection != 'a'){
+
 					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
 					if (cellState == 2 ) {
 										foodTimeout = 0;
 										grow = 1;
 									}
 					 moveLeft(snake, grow);
-				}
+
 				break;
 			case 'a':
 				cellState = checkOccupiedRight( snake, board);
 
 
-				if (previousDirection != 'c'){
+
 					if (cellState == 1 || cellState == -1) xSemaphoreGive( xGameOverSem );
 					if (cellState == 2 ) {
 						foodTimeout = 0;
 						grow = 1;
 					}
 					moveRight(snake, grow);
-				}
 
+
+// not used, proof of concept:
 
 				//if (checkOccupiedRight( *snake, board) != 0 ) xSemaphoreGive( xGameOverSem );
 //				xQueueSend( xBoardQ, ( void * ) &board,  1 );
@@ -804,7 +805,7 @@ void FoodPositionGenerator(void *  pvParameters){
 }
 
 
-void CollisionCheck( void * pvParameters )
+void CollisionCheck( void * pvParameters ) //not used
 {
 
 	int board[4][8][8];
@@ -826,7 +827,7 @@ void CollisionCheck( void * pvParameters )
     }
 }
 
-void ButtonHandler( void * pvParameters )
+void ButtonHandler( void * pvParameters ) // not used
 {
 
 	char buttonPressed;
@@ -862,7 +863,7 @@ void ButtonHandler( void * pvParameters )
     }
 }
 
-void Task3( void * pvParameters )
+void PaintDeathScreen( void * pvParameters )
 {
 	const uint64_t IMAGES[] = {
 	  0xff00000000000000,
@@ -879,24 +880,26 @@ void Task3( void * pvParameters )
 
 	if(xSemaphoreTake( xGameOverSem, ( TickType_t ) portMAX_DELAY) == pdTRUE);
 	if( xSemaphoreTake( xScreenDriverMutex, ( TickType_t ) portMAX_DELAY) == pdTRUE ) ;
-	for (int i = 0; i < IMAGES_LEN; ++i) {
-		MAX7219_MatrixSetRow64(0, IMAGES[i]);
-		MAX7219_MatrixSetRow64(1, IMAGES[i]);
-		MAX7219_MatrixSetRow64(2, IMAGES[i]);
-		MAX7219_MatrixSetRow64(3, IMAGES[i]);
-		MAX7219_MatrixUpdate();
-		vTaskDelay(150);
 
-	}
-	vTaskDelay(500);
     for(;;)
     {
+    	for (int i = 0; i < IMAGES_LEN; ++i) {
+    			MAX7219_MatrixSetRow64(0, IMAGES[i]);
+    			MAX7219_MatrixSetRow64(1, IMAGES[i]);
+    			MAX7219_MatrixSetRow64(2, IMAGES[i]);
+    			MAX7219_MatrixSetRow64(3, IMAGES[i]);
+    			MAX7219_MatrixUpdate();
+    			vTaskDelay(150);
 
-    	 MAX7219_MatrixSetRow64(0, CHR('D'));
-		MAX7219_MatrixSetRow64(1, CHR('E'));
-		  MAX7219_MatrixSetRow64(2, CHR('A'));
-		MAX7219_MatrixSetRow64(3, CHR('D'));
-		MAX7219_MatrixUpdate();
+    		}
+
+    		vTaskDelay(500);
+    		MAX7219_MatrixSetRow64(0, CHR('D'));
+    					MAX7219_MatrixSetRow64(1, CHR('E'));
+    					  MAX7219_MatrixSetRow64(2, CHR('A'));
+    					MAX7219_MatrixSetRow64(3, CHR('D'));
+    					MAX7219_MatrixUpdate();
+     vTaskDelay(1000);
     }
 }
 
